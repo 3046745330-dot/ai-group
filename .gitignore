@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 打包产物（37.9 MB，不进仓库）
+dist/
+build/
+*.spec.bak
+
+# 浏览器 profile（29.4 MB，运行时自动生成）
+ai-group-window-profile/
+*-window-profile/
+
+# 用户真实数据（聊天记录，绝不公开）
+data/
+!data/.gitkeep
+
+# 密钥
+.env
+.env.local
+*.key
+credentials*
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 日志与临时文件
+*.log
+*.tmp
+_runtime_extract.txt

@@ -1,0 +1,85 @@
+# ============================================================
+#  AgentTeams「纯 LLM 群」配置
+# ------------------------------------------------------------
+#  追加到：C:\Users\yyy\.dsh\profiles\desktop\cordis.patch.yml 末尾
+#  插件版本：@nanmicoder/dsh-agent-teams 0.1.23
+#  id / name 取自插件自带 bundle patch，必须一致，否则配置不生效。
+#
+#  provider id `moonshotai-cn` 与模型 `kimi-k2.6` 来自 pi-ai 内置目录
+#  （@earendil-works/pi-ai/dist/providers/data/moonshotai-cn.json），
+#  是实测值，不是猜的。
+#
+#  ⚠️ 启用前提：先在 DSH 设置 → 模型 → 添加模型提供方 里把
+#     「Moonshot AI CN」的 API Key 填好。否则创建群员会失败。
+# ============================================================
+
+- id: agent-teams
+  name: "@nanmicoder/dsh-agent-teams"
+  config:
+    stateDir: .agent-teams
+    memberProvider: spawn
+    maxMembers: 8
+
+    # 群员默认模型：没单独写 provider/model 的成员走这里
+    memberLlmProvider: deepseek-account
+    memberModel: deepseek-flash
+
+    # 兜底路由：某成员的 key 过期 / 被限流 / 模型下线时退回 DeepSeek。
+    # 对 Kimi 尤其重要——15 元额度很容易跑光，跑光后整群不会瘫痪。
+    fallback:
+      provider: deepseek-account
+      model: deepseek-flash
+
+    # ----------------------------------------------------------
+    # 群规：纯 LLM 群员的工具策略
+    # ----------------------------------------------------------
+    # AgentTeams 的"群员"本质是 DSH 子会话，做不到真正零工具——
+    # 4 个协调工具（claim_task/update_task/send_message/status）
+    # 在 allow 策略下会被强制保留。所以"纯 LLM 成员" = 把工具削到
+    # 最少，再用 executionPrompt 约束它只发言。
+    toolPolicies:
+      llm_only:                 # 只会说话：read + 4 个协调工具
+        allow: [read]
+      llm_research:             # 会自己查资料：再加检索类工具
+        allow: [read, glob, grep, web_search, web_fetch]
+
+    # ----------------------------------------------------------
+    # 群模板：/agent-teams --profile llm-group <目标>
+    # ----------------------------------------------------------
+    profiles:
+      llm-group:
+        description: 多厂商 LLM 群：一个群主（DeepSeek）+ 若干只发言不干活的模型
+        # captain = 群主按目标现拆任务图，不需要写 tasks
+        taskPlanning: captain
+        members:
+          - name: kimi
+            role: 群员 · 中文长文与论证
+            provider: moonshotai-cn
+            # 你的账号目前只有 kimi-k2.6 与 kimi-k2.7-code。
+            # kimi-k3 在 pi-ai 目录里存在（1M 上下文，$3/$15），
+            # 但该 Key 的 /models 没返回它，多半需要充值或更高等级。
+            model: kimi-k2.6
+            tool_policy: llm_research
+            executionPrompt: |
+              你是群里的"论证担当"。只以文字发言：给出观点、理由、以及一个反例。
+              未经群主明确要求，不要读写文件、不要执行命令、不要创建子任务。
+              汇报时说清：你的结论、你依据什么、你不确定什么。
+
+# ------------------------------------------------------------
+# 以后拿到豆包 Key，在 members 下追加（注意 provider id 也要先确认）：
+#
+#          - name: doubao
+#            role: 群员 · 快速总结与反驳
+#            provider: <方舟 provider id>
+#            model: <接入点 id 或模型名>
+#            tool_policy: llm_research
+#            executionPrompt: |
+#              你是群里的"反对派"。只以文字发言：先给结论，再给三条理由，
+#              并明确指出现有其他群员可能漏掉或搞错的地方。
+#
+# 接 Codex / WorkBuddy 这类 CLI agent 属于路径 B（桥成员），
+# 需要额外的工具策略，本期不做：
+#
+#      bridged:
+#        allow: [pwsh, read, write, edit]
+# ------------------------------------------------------------

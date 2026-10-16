@@ -1,0 +1,149 @@
+# ============================================================================
+# 模型提供方（Provider）路由表
+# ----------------------------------------------------------------------------
+# 说明：
+#   1. 本文件只描述「怎么连」，不含任何密钥明文。密钥按 credentials 列表
+#      的顺序解析：先读环境变量，再读 DSH 凭据库 ~/.dsh/.credentials.yaml。
+#   2. api 字段支持两种协议：
+#        openai-chat  —— OpenAI 兼容的 /chat/completions（DeepSeek/Kimi/豆包均属此类）
+#        mock         —— 离线假回复，不产生任何 API 费用，用于零成本跑通链路
+#   3. 任何 provider 要真正可用，必须同时具备 api + base_url + 非空 models。
+# ============================================================================
+
+providers:
+  # --------------------------------------------------------------------------
+  # DeepSeek：本项目主力模型。群主（组长）由它担任。
+  # 密钥来源：**只认**环境变量 DEEPSEEK_API_KEY。
+  # 说明（实测事实，2026-10）：DSH 凭据库里的 `deepseek-account-platform/default`
+  #   token 不是 platform.deepseek.com 的 API key —— 用它请求
+  #   GET https://api.deepseek.com/v1/models 返回 HTTP 401 Authentication Fails。
+  #   因此这里**故意不把它列为凭据来源**：留着一个看起来有效、实际必 401 的来源，
+  #   比没有更糟。没配 key 时该 provider 明确报「不可用」，成员按 fallback 走降级。
+  # --------------------------------------------------------------------------
+  deepseek:
+    label: DeepSeek
+    api: openai-chat
+    base_url: https://api.deepseek.com/v1
+    credentials:
+      - env: DEEPSEEK_API_KEY
+    models:
+      deepseek-v4-flash:
+        label: DeepSeek V4 Flash
+        context_window: 131072
+        capabilities: [chat, tools, cheap]
+      deepseek-v4-pro:
+        label: DeepSeek V4 Pro
+        context_window: 131072
+        capabilities: [chat, tools]
+      # 兜底：不同账号可用的模型 id 不同，连不上时自动回退到这两个
+      deepseek-chat:
+        label: DeepSeek Chat (兼容别名)
+        context_window: 65536
+        capabilities: [chat, tools, cheap]
+      deepseek-reasoner:
+        label: DeepSeek Reasoner (兼容别名)
+        context_window: 65536
+        capabilities: [chat, reasoning]
+
+  # --------------------------------------------------------------------------
+  # Kimi / Moonshot（国内站）：群员「中文长文与论证」角色。
+  # 实测（2026-10）：该账号可见模型仅 kimi-k2.6 与 kimi-k2.7-code。
+  # 注意：kimi-k2.6 在多轮 + 工具调用场景需要回传思考内容，
+  #       本项目不传 tools，因此不受该限制影响。
+  # --------------------------------------------------------------------------
+  moonshotai-cn:
+    label: Kimi (Moonshot 国内站)
+    api: openai-chat
+    base_url: https://api.moonshot.cn/v1
+    credentials:
+      - env: MOONSHOTAI_CN_API_KEY
+      - env: MOONSHOT_API_KEY
+      - dsh_credential: MOONSHOTAI_CN_API_KEY
+    models:
+      kimi-k2.6:
+        label: Kimi K2.6
+        context_window: 262144
+        capabilities: [chat, long-context]
+      kimi-k2.7-code:
+        label: Kimi K2.7 Code
+        context_window: 262144
+        capabilities: [chat, code]
+
+  # --------------------------------------------------------------------------
+  # 火山方舟 Doubao：实测可用（2026-10）。
+  # 该账号下 doubao-seed-2-1-pro-260915 真实可用；
+  # doubao-seed-2-1-lite-260915 返回 ModelNotOpen（账号未开通），故**不列入 models**，
+  # 开通后自行加回即可。其余 doubao-seed-1-6-*、deepseek-v3-*、glm-* 等实测 id 不存在。
+  # --------------------------------------------------------------------------
+  doubao:
+    label: 火山方舟 Doubao
+    api: openai-chat
+    base_url: https://ark.cn-beijing.volces.com/api/v3
+    credentials:
+      - env: ARK_API_KEY
+      - dsh_credential: ARK_API_KEY
+    models:
+      doubao-seed-2-1-pro-260915:
+        label: Doubao Seed 2.1 Pro
+        context_window: 262144
+        capabilities: [chat]
+      # doubao-seed-2-1-lite-260915：该账号未开通（ModelNotOpen），需要时在控制台开通再加回
+
+  # --------------------------------------------------------------------------
+  # OpenAI：留桩，配置位保留。填 OPENAI_API_KEY 即可启用。
+  # 国内直连需要自备代理，本项目不内置代理配置。
+  # --------------------------------------------------------------------------
+  openai:
+    label: OpenAI
+    api: openai-chat
+    base_url: https://api.openai.com/v1
+    credentials:
+      - env: OPENAI_API_KEY
+    models:
+      gpt-5.1:
+        label: GPT-5.1
+        context_window: 400000
+        capabilities: [chat, tools]
+      gpt-5.1-mini:
+        label: GPT-5.1 mini
+        context_window: 400000
+        capabilities: [chat, cheap]
+
+  # --------------------------------------------------------------------------
+  # 离线通道：永远可用，无需密钥。用于 UI 联调与零额度演示。
+  # --------------------------------------------------------------------------
+  mock:
+    label: 离线模拟
+    api: mock
+    base_url: ""
+    credentials: []
+    models:
+      mock-fast:
+        label: Mock 快思考
+        context_window: 8192
+        capabilities: [chat]
+      mock-deep:
+        label: Mock 慢思考
+        context_window: 8192
+        capabilities: [chat]
+
+  # 由界面「添加成员」写入（通义千问（阿里云百炼））
+  qwen:
+    label: 通义千问（阿里云百炼）
+    api: openai-chat
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    credentials:
+      - env: DASHSCOPE_API_KEY
+    models:
+      qwen-turbo:
+        label: qwen-turbo
+        context_window: 131072
+        capabilities: [chat]
+      qwen-plus:
+        label: qwen-plus
+        context_window: 131072
+        capabilities: [chat]
+      qwen-max:
+        label: qwen-max
+        context_window: 131072
+        capabilities: [chat]

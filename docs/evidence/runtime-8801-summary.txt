@@ -1,0 +1,74 @@
+==============================================================================
+t5 运行时取证：真实服务 @ http://127.0.0.1:8801
+问题：用一句话回答：多模型群聊相对「单模型多次调用」的不可替代价值是什么？请组长拆解并 @kimi 用一句话给出论证、@doubao 用一句话给出反驳，然后收敛。
+==============================================================================
+GET /api/health → 200，mock_only=False
+    provider deepseek         ok=False 未配置（DEEPSEEK_API_KEY）
+    provider moonshotai-cn    ok=True  密钥来源 dsh:MOONSHOTAI_CN_API_KEY
+    provider doubao           ok=True  密钥来源 dsh:ARK_API_KEY
+    provider openai           ok=False 未配置（OPENAI_API_KEY）
+    provider mock             ok=True  离线通道，无需密钥
+    member   captain    enabled=True  route=deepseek/deepseek-v4-flash                 fallback=doubao/doubao-seed-2-1-pro-260915
+    member   kimi       enabled=True  route=moonshotai-cn/kimi-k2.6                    fallback=doubao/doubao-seed-2-1-pro-260915
+    member   demo-bot   enabled=True  route=mock/mock-fast                             fallback=无
+    member   doubao     enabled=True  route=doubao/doubao-seed-2-1-pro-260915          fallback=moonshotai-cn/kimi-k2.6
+    member   gpt        enabled=False route=openai/gpt-5.1-mini                        fallback=moonshotai-cn/kimi-k2.6
+    member   recorder   enabled=True  route=deepseek/deepseek-v4-flash                 fallback=doubao/doubao-seed-2-1-pro-260915
+
+WS 首帧 kind=hello，members=['captain', 'kimi', 'demo-bot', 'doubao', 'recorder']，limits={'max_messages': 10, 'max_depth': 2, 'max_context_chars': 9000, 'max_model_calls_per_run': 11}
+POST /api/chat → HTTP 200 {"ok": true, "mode": "streaming-over-websocket", "limits": {"max_messages": 10, "max_depth": 2, "max_context_chars": 9000, "max_model_calls_per_run": 11}}
+
+事件总数 2315（含 hello），一轮耗时 563.0s
+出现的事件种类：['hello', 'run_start', 'message', 'room_state', 'agent_status', 'message_start', 'notice', 'route_changed', 'message_delta', 'message_end', 'route_summary', 'run_end']
+
+--- 发言顺序与实际生效路由（来自 message_end）---
+    captain    role=captain   声明=deepseek/deepseek-v4-flash                 实际=doubao/doubao-seed-2-1-pro-260915          236字（已降级）
+    kimi       role=member    声明=moonshotai-cn/kimi-k2.6                    实际=moonshotai-cn/kimi-k2.6                    128字
+    doubao     role=member    声明=doubao/doubao-seed-2-1-pro-260915          实际=doubao/doubao-seed-2-1-pro-260915          359字
+    captain    role=captain   声明=deepseek/deepseek-v4-flash                 实际=doubao/doubao-seed-2-1-pro-260915          362字（已降级）
+    kimi       role=member    声明=moonshotai-cn/kimi-k2.6                    实际=doubao/doubao-seed-2-1-pro-260915          105字（已降级）
+    doubao     role=member    声明=doubao/doubao-seed-2-1-pro-260915          实际=doubao/doubao-seed-2-1-pro-260915          622字
+    captain    role=captain   声明=deepseek/deepseek-v4-flash                 实际=doubao/doubao-seed-2-1-pro-260915          944字（已降级）
+    recorder   role=recorder  声明=deepseek/deepseek-v4-flash                 实际=doubao/doubao-seed-2-1-pro-260915          849字（已降级）
+
+--- route_summary 事件（同源/降级/失败）---
+    providers={'doubao': 3} degraded=2 shared={'doubao': 3} failed=[]
+    text=⚠ 同源提示：本轮 3 个角色实际只落在 1 个 provider 上，其中 doubao×3 由同一个 provider（厂商/通道）承担，且 2 个角色是降级后落过去的。跨厂商去相关的效果已被打折，请谨慎看待结论。
+
+--- notice / error ---
+    [notice/warn] deepseek/deepseek-v4-flash 不可用（provider `deepseek` 缺少可用密钥（未配置（DEEPSEEK_API_KEY）），请配置环境变量或 DSH 凭据库后再试，或把该成员切到 mock 通道。），已自动降级到 doubao/doubao-seed-2-1-pro-260915；
+    [route_changed/-] deepseek/deepseek-v4-flash → doubao/doubao-seed-2-1-pro-260915
+    [notice/warn] deepseek/deepseek-v4-flash 不可用（provider `deepseek` 缺少可用密钥（未配置（DEEPSEEK_API_KEY）），请配置环境变量或 DSH 凭据库后再试，或把该成员切到 mock 通道。），已自动降级到 doubao/doubao-seed-2-1-pro-260915；
+    [route_changed/-] deepseek/deepseek-v4-flash → doubao/doubao-seed-2-1-pro-260915
+    [notice/warn] moonshotai-cn/kimi-k2.6 不可用（moonshotai-cn/kimi-k2.6 流式读取中断：Request timed out.），已自动降级到 doubao/doubao-seed-2-1-pro-260915；本条回复由降级路由生成。
+    [route_changed/-] moonshotai-cn/kimi-k2.6 → doubao/doubao-seed-2-1-pro-260915
+    [notice/warn] deepseek/deepseek-v4-flash 不可用（provider `deepseek` 缺少可用密钥（未配置（DEEPSEEK_API_KEY）），请配置环境变量或 DSH 凭据库后再试，或把该成员切到 mock 通道。），已自动降级到 doubao/doubao-seed-2-1-pro-260915；
+    [route_changed/-] deepseek/deepseek-v4-flash → doubao/doubao-seed-2-1-pro-260915
+    [notice/warn] 已达 @ 触发深度上限（max_depth=2），后续 kimi、captain、doubao 的 @ 不再展开。
+    [notice/warn] deepseek/deepseek-v4-flash 不可用（provider `deepseek` 缺少可用密钥（未配置（DEEPSEEK_API_KEY）），请配置环境变量或 DSH 凭据库后再试，或把该成员切到 mock 通道。），已自动降级到 doubao/doubao-seed-2-1-pro-260915；
+    [route_changed/-] deepseek/deepseek-v4-flash → doubao/doubao-seed-2-1-pro-260915
+
+--- 记录员纪要 ---
+    实际路由 doubao/doubao-seed-2-1-pro-260915，849 字
+    【本轮结论】多模型群聊相对单模型多次调用的不可替代价值，仅存在于无法预先编排固定校验流程、参与模型在任务域误差正交性经验证达标、轻量替代方案实测无效的开放探索型多轮协同推理场景中。这类场景下异构模型在同一上下文实时互引、互纠、共建产生的动态协同效应，是单模型差异化配置、逐轮独立校验流水线、多模型后置投票等预定义方案难以稳定复现的。其余可提前拆解流程的场景中群聊均可被轻量方案替代，还会额外承担锚定偏差、同源错误放大、数倍token成本与响应延迟等风险。
+    【形成的共识】
+    1. 单模型可通过差异化提示、挂载不同知识库/工具、切换微调适配器构造有效异质视角，可预先拆解的多轮任务通过逐轮「生成-独立校验-结果回传」流水线即可实现同等纠错效果，无需使用群聊架构。
+    2. 选用群聊架构需同时满足三项必要准入条件：任务无明确拆解路径、无法预先设计固定校验节点，参与模型在任务域的误差相关系数低于0.3（工程经验阈值）且无覆盖全模型的同源公共错误，单模型差异化配置、多模型独立输出后置投票两类轻量方案实测均不达标。
+    3. 异构模型的误差正交性并非默认属性，公共训练语料带来的同源错误可能引发集体误判，群聊的锚定效应会放大该风险，同时存在成本更高、响应延迟更长的问题，需避免无差别滥用。
+    【未决分歧】无
+    【下一步】你可先对照三项准入条件评估目标任务的适配性，优先测试单模型差异化配置、多模型后置投票等轻量方案的实
+
+--- 实际调用记录 /api/diagnostics ---
+    22:52:14 deepseek/deepseek-v4-flash               host=api.deepseek.com                 ok=False chars=0     0.0s finish=- provider `deepseek` 缺少可用密钥（未配置（DEEPSEEK_API_KEY）），请配置环境变量或 D
+    22:52:28 doubao/doubao-seed-2-1-pro-260915        host=ark.cn-beijing.volces.com        ok=True  chars=236   14.71s finish=stop 
+    22:52:58 moonshotai-cn/kimi-k2.6                  host=api.moonshot.cn                  ok=True  chars=128   29.55s finish=stop 
+    22:53:17 doubao/doubao-seed-2-1-pro-260915        host=ark.cn-beijing.volces.com        ok=True  chars=359   18.94s finish=stop 
+    22:53:17 deepseek/deepseek-v4-flash               host=api.deepseek.com                 ok=False chars=0     0.0s finish=- provider `deepseek` 缺少可用密钥（未配置（DEEPSEEK_API_KEY）），请配置环境变量或 D
+    22:54:01 doubao/doubao-seed-2-1-pro-260915        host=ark.cn-beijing.volces.com        ok=True  chars=362   44.12s finish=stop 
+    22:57:13 moonshotai-cn/kimi-k2.6                  host=api.moonshot.cn                  ok=False chars=0     192.43s finish=- Request timed out.
+    22:57:30 doubao/doubao-seed-2-1-pro-260915        host=ark.cn-beijing.volces.com        ok=True  chars=105   16.38s finish=stop 
+    22:58:37 doubao/doubao-seed-2-1-pro-260915        host=ark.cn-beijing.volces.com        ok=True  chars=622   67.29s finish=stop 
+    22:58:37 deepseek/deepseek-v4-flash               host=api.deepseek.com                 ok=False chars=0     0.0s finish=- provider `deepseek` 缺少可用密钥（未配置（DEEPSEEK_API_KEY）），请配置环境变量或 D
+    22:59:30 doubao/doubao-seed-2-1-pro-260915        host=ark.cn-beijing.volces.com        ok=True  chars=944   52.49s finish=stop 
+    22:59:30 deepseek/deepseek-v4-flash               host=api.deepseek.com                 ok=False chars=0     0.0s finish=- provider `deepseek` 缺少可用密钥（未配置（DEEPSEEK_API_KEY）），请配置环境变量或 D
+    23:01:38 doubao/doubao-seed-2-1-pro-260915        host=ark.cn-beijing.volces.com        ok=True  chars=849   128.1s finish=stop 

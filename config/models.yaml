@@ -1,0 +1,155 @@
+﻿# ============================================================================
+# 群成员 = 模型 + 角色。这张表决定「谁在群里、谁坐哪个位置」。
+# ----------------------------------------------------------------------------
+# 每个成员有一份 provider/model 路由和一份独立系统提示词（落盘在
+# config/roles/<role>.md），这正是题目第 2 条「为每个 AI 模型创建独立 Agent，
+# 用不同系统提示词定义职责」的落地位置。
+#
+# 界面相关的三个字段（都是给人看的，不影响调用逻辑）：
+#   duty   ：左栏成员名下面那一行职责描述。**随你写**，留空则该行不显示。
+#   avatar ：头像。可以填 avatars/xxx.png（相对 web/ 目录，界面会渲染成图片），
+#            也可以填一个 emoji（如 "🧭"）。图片放在 web/avatars/ 下。
+#   hidden ：true 表示不出现在左栏「团队成员」名单里（记录员、离线兜底这类
+#            不参与讨论的角色用它），但仍然照常工作。
+#
+# 故意保留的两项能力约束（防止群聊失控烧额度）：
+#   max_turns_per_run：单次用户提问内，该成员最多发言次数
+#   can_dispatch      ：是否允许在回复里 @ 别人来派活
+#
+# 标签（tags）规则：**必须全局唯一**。标签会随「群成员名单」一起发给模型，
+# 模型会很自然地照抄成 `@标签`；如果两个成员共用同一个标签，那个地址就是走不通的
+# （解析侧会判歧义并拒绝派发）。
+# ============================================================================
+
+agents:
+  # ------------------------- 组长 Agent -------------------------
+  # 2026-10-13 改：组长换成 DeepSeek（deepseek-v4-flash）。
+  # 原因：用户已确认愿意为 DeepSeek 付费，且希望组长由 DeepSeek 担任。
+  #
+  # 命名/头像必须与**实际路由**一致（这里都是 DeepSeek），否则界面名不副实。
+  # 换回 Kimi 做组长时，记得同步改 display_name 与 avatar。
+  #
+  # 成本：DeepSeek 按量真实扣费，所以选的是标了 cheap 的 v4-flash；
+  # 想要更强推理可把 model 换成 deepseek-v4-pro（更贵）。
+  # fallback 指向 Kimi —— 注意 Kimi 是思考型模型，reasoning 计入 max_tokens，
+  # 所以 max_tokens 要按它留够（给少了降级时会产出空气泡）。
+  - id: captain
+    display_name: DeepSeek
+    avatar: avatars/deepseek.png
+    duty: 拆任务 · 定方向 · 收口
+    role: captain
+    role_file: captain.md
+    provider: deepseek
+    model: deepseek-v4-flash
+    fallback:
+      provider: moonshotai-cn
+      model: kimi-k2.6
+    temperature: 0.7
+    max_tokens: 3000
+    max_turns_per_run: 2
+    can_dispatch: true
+    tags: [组长, 任务拆解, 派发]
+    enabled: true
+
+  # ------------------------- 组员 Agent -------------------------
+  # kimi-k2.6 是思考型模型，两点实测事实（2026-10，均用本仓库 scripts 直连复现）：
+  #   1. 它只接受 temperature=1：给 0.6/0.7 都返回 HTTP 400
+  #      「invalid temperature: only 1 is allowed for this model」。
+  #      另外 llm.py 内置了一次「不传 temperature」的参数纠正（只一次、不循环重试），
+  #      以免上游哪天改了要求就直接把成员打死。
+  #   2. 思考内容走 delta.reasoning_content，且**计入 max_tokens**：给 1500 会正文为空，
+  #      给 3000 才有正文。所以这里的 max_tokens 必须留够。
+  - id: kimi
+    display_name: Kimi
+    avatar: ""
+    duty: 长文论证 · 深挖依据
+    role: member
+    role_file: member_analyst.md
+    provider: moonshotai-cn
+    model: kimi-k2.6
+    fallback:
+      provider: mock
+      model: mock-fast
+    temperature: 1.0
+    # 2026-10-13：实测一次「深入论证」的思考达 5415 字（≈2700 tokens），
+    # 3000 的上限已经贴边 —— 再长一点正文就会是空的。max_tokens 是上限
+    # 不是预留，调大不额外花钱，所以放宽到 8000 保安全。
+    max_tokens: 8000
+    max_turns_per_run: 2
+    can_dispatch: true
+    tags: [论证担当, 长文, 论证]
+    features: [web_search]
+    enabled: true
+
+  # ------------------------- 第二意见成员 -------------------------
+  # 豆包（火山方舟）：实测 doubao-seed-2-1-pro-260915 可用。
+  # 未配置 ARK_API_KEY 时该成员不可用 → 会走下面的 fallback（不静默换模型）。
+  #
+  # max_tokens 必须按 **fallback 目标**（moonshotai-cn/kimi-k2.6）来留：
+  # Kimi 是思考型模型，reasoning 计入 max_tokens，实测给 1000 会正文为空、
+  # 给 3000 才有正文。原先写 1000，导致豆包欠费走降级时该成员产出 0 字空气泡。
+  - id: doubao
+    display_name: 豆包
+    avatar: avatars/doubao.svg
+    duty: 快速反驳 · 挑风险
+    role: member
+    role_file: member_critic.md
+    provider: doubao
+    model: doubao-seed-2-1-pro-260915
+    fallback:
+      provider: moonshotai-cn
+      model: kimi-k2.6
+    temperature: 0.8
+    max_tokens: 3000
+    max_turns_per_run: 2
+    can_dispatch: true
+    tags: [反驳担当, 反驳, 风险]
+    enabled: true
+
+  # ------------------------- 留桩成员（启用后即为 GPT） -------------------------
+  - id: gpt
+    display_name: GPT
+    avatar: avatars/openai.png
+    duty: 交叉视角 · 补盲点
+    role: member
+    role_file: member_critic.md
+    provider: openai
+    model: gpt-5.1-mini
+    fallback:
+      provider: moonshotai-cn
+      model: kimi-k2.6
+    temperature: 0.7
+    max_tokens: 1000
+    max_turns_per_run: 2
+    can_dispatch: true
+    tags: [交叉视角, 留桩]
+    enabled: false
+
+  # ------------------------- 记录员：已移除 -------------------------
+  # 2026-10-13 按用户要求删掉：每轮讨论结束后不再额外调一次模型写纪要
+  # （那是一次真实的模型调用，也是每次都要等它跑完才收尾）。
+  #
+  # 引擎里的「记录员汇总」能力没有删，只是默认关闭：
+  #   · config.py 在没有记录员条目时会造一个 enabled=False 的对象，
+  #     engine._summarize 见到 enabled=False 直接 return —— 零调用、零费用、不进名单；
+  #   · 想启用就把下面这段取消注释（把 enabled 设为 true）：
+  #
+  # - id: recorder
+  #   display_name: 记录员
+  #   role: recorder
+  #   role_file: recorder.md
+  #   provider: moonshotai-cn
+  #   model: kimi-k2.6
+  #   temperature: 1.0
+  #   max_tokens: 1200
+  #   max_turns_per_run: 1
+  #   can_dispatch: false
+  #   tags: [汇总, 纪要]
+  #   hidden: true
+  #   enabled: true
+
+# 单轮额度护栏（界面「设置」可改；改这里也行）
+limits:
+  max_messages: 6
+  max_depth: 3
+  max_context_chars: 5000

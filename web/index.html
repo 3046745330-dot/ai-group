@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI 工作群</title>
+<link rel="stylesheet" href="/static/style.css" />
+<script>
+  /* 尽早确定主题，避免刷新时先渲染浅色再跳深色（闪白）。
+     优先级：本地保存的选择 → 系统偏好 → 浅色。 */
+  (function () {
+    try {
+      var saved = localStorage.getItem('aig-theme');
+      // 默认深色（用户要求）。只有用户手动切过浅色才会存下 'light'，
+      // 所以「没存过」= 首次使用 = 深色；存过就尊重用户的选择。
+      var theme = saved || 'dark';
+      document.documentElement.setAttribute('data-theme', theme);
+    } catch (e) {
+      document.documentElement.setAttribute('data-theme', 'dark');  // 兜底也给深色
+    }
+  })();
+</script>
+</head>
+<body>
+<div class="shell">
+
+  <!-- 无边框桌面窗口的标题栏（浏览器里 app.js 不会加 .is-desktop，自动隐藏） -->
+  <div class="titlebar" id="titlebar" data-tauri-drag-region>
+    <span class="tb-title" data-tauri-drag-region>AI 工作群</span>
+    <div class="tb-controls">
+      <button class="tb-btn" id="tb-min" title="最小化">─</button>
+      <button class="tb-btn" id="tb-max" title="最大化 / 还原">▢</button>
+      <button class="tb-btn tb-close" id="tb-close" title="关闭">✕</button>
+    </div>
+  </div>
+
+<div class="app">
+
+  <!-- ==================== 左侧：群信息 + 成员 ==================== -->
+  <aside class="sidebar">
+
+    <div class="brand">
+      <span class="brand-mark">✳</span>
+      <div class="brand-text">
+        <div class="brand-row">
+          <span class="brand-name">AI 工作群</span>
+          <span class="brand-dot" id="ws-dot" title="连接状态"></span>
+        </div>
+        <div class="brand-sub" id="brand-sub">多模型群聊</div>
+      </div>
+    </div>
+
+    <!-- 项目 + 成本（紧凑两行） -->
+    <div class="side-block">
+      <select id="project-select" class="proj-select"></select>
+      <div class="cost-row"><span class="cost-label">今日组长</span><b id="budget-session">¥0.00</b></div>
+      <div class="cost-row">
+        <span class="cost-label">今日模型</span>
+        <b id="budget-today">¥0.00</b><span class="cost-cap">/<span id="budget-cap">¥10.00</span></span>
+      </div>
+      <div class="side-note" id="budget-note">按调用估算，非账单口径</div>
+      <div class="proj-actions">
+        <button id="proj-new" class="light-btn">新建</button>
+        <button id="proj-edit" class="light-btn">编辑</button>
+        <button id="proj-archive" class="light-btn">归档</button>
+      </div>
+    </div>
+
+    <!-- 群成员 -->
+    <div class="side-section side-section-grow">
+      <div class="side-head">
+        <span>群成员</span>
+        <span class="side-count" id="member-count">0</span>
+        <button class="add-member" id="add-member-btn" title="添加成员">＋</button>
+      </div>
+      <div id="members" class="member-list"></div>
+
+      <div class="me-row" id="me-row" title="点击更换我的头像；右键（或长按）恢复默认">
+        <div class="ws-avatar me-avatar" id="me-avatar">我</div>
+        <div class="ws-main">
+          <div class="ws-name">我 <span class="ws-role">用户</span></div>
+          <div class="ws-sub">点头像可自定义</div>
+        </div>
+      </div>
+      <input type="file" id="avatar-file" accept="image/*" hidden />
+    </div>
+
+    <div class="side-foot">
+      <button id="theme-toggle" class="foot-btn" title="切换深色 / 浅色主题">
+        <span class="theme-icon">🌙</span><span id="theme-label">深色</span>
+      </button>
+      <button id="reset-btn" class="foot-btn">清空</button>
+      <!-- 保留 id 供旧代码写入，不显示 -->
+      <span id="ws-text" hidden></span>
+      <span id="tag-adapter" hidden></span>
+    </div>
+  </aside>
+
+  <!-- ==================== 右侧：聊天 ==================== -->
+  <main class="main">
+    <header class="main-head">
+      <!-- 群名：点一下就能改，存 localStorage。人数跟在后面。 -->
+      <h1 id="chat-title" class="group-name" title="点一下改群名">AI 工作群</h1>
+      <span class="head-count" id="chat-sub">(0)</span>
+      <div class="head-right">
+        <button class="head-btn" id="search-btn" title="搜索消息">⌕</button>
+        <button class="head-btn" id="menu-btn" title="更多">⋯</button>
+        <div class="head-menu hidden" id="head-menu">
+          <button data-menu="think">模型思考</button>
+          <button data-menu="settings">对话设置</button>
+          <button data-menu="tasks">任务板</button>
+      <button data-menu="usage">用量与额度</button>
+      <button data-menu="workspace">打开工作区</button>
+      <button data-menu="export">导出聊天记录</button>
+          <button data-menu="info">运行信息</button>
+          <button data-menu="reset">清空聊天记录</button>
+        </div>
+      </div>
+      <span id="captain-chip" hidden></span>
+      <span id="tag-run" hidden></span>
+    </header>
+
+    <!-- 搜索栏：默认收起，点顶栏 ⌕ 展开。只做前端过滤，不改聊天记录。 -->
+    <div class="search-bar hidden" id="search-bar">
+      <input id="search-input" placeholder="搜索消息内容或发言者…" autocomplete="off" />
+      <span class="search-count" id="search-count"></span>
+      <button class="search-close" id="search-close" title="关闭">✕</button>
+    </div>
+
+    <div class="view view-chat active" id="view-chat">
+      <div id="stream" class="stream">
+        <div class="empty-hint" id="empty-hint">
+          <div class="empty-emoji">💬</div>
+          <p>还没有人说话</p>
+          <div class="samples">
+            <button class="sample">群里都有谁？各自负责什么？</button>
+            <button class="sample">必须由 @kimi 和 @doubao 分别发言：桌面应用最容易被忽略的工程隐患是什么？</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="composer">
+        <div id="mention-pop" class="mention-pop hidden"></div>
+        <!-- emoji 面板：点输入框的 😊 打开，点表情插入光标处 -->
+        <div id="emoji-pop" class="emoji-pop hidden"></div>
+        <!-- 待发送的附件预览（图片缩略图 / 文件名胶囊），可单个删除 -->
+        <div id="attach-tray" class="attach-tray hidden"></div>
+        <textarea id="input" rows="1"
+          placeholder="发消息…（Enter 发送，Shift+Enter 换行，@ 选人，可直接粘贴截图）"></textarea>
+        <div class="composer-bar">
+          <div class="composer-left">
+            <button class="tool-btn" id="btn-emoji" title="表情">😊</button>
+            <button class="tool-btn" id="btn-image" title="发送图片（也可以直接 Ctrl+V 粘贴截图）">🖼</button>
+            <button class="tool-btn" id="btn-file" title="发送文件（文本文件的内容会让 AI 真的读到）">📎</button>
+            <button class="tool-btn" id="btn-mention" title="提及成员（@）">@</button>
+            <span class="composer-hint" id="composer-hint"></span>
+          </div>
+          <div class="composer-right">
+            <button id="send-btn" class="send-btn">发送</button>
+          </div>
+        </div>
+        <input type="file" id="pick-image" accept="image/*" multiple hidden />
+        <input type="file" id="pick-file" multiple hidden />
+      </div>
+    </div>
+
+    <!-- 旧面板：保留 id 让现有渲染代码继续工作，但不显示 -->
+    <div hidden id="tabs"></div>
+    <div hidden id="view-roster">
+      <div class="roster-msg hidden" id="roster-msg"></div>
+      <div id="roster-detail" class="roster-detail"></div>
+    </div>
+    <div hidden id="view-context">
+      <div class="health" id="health"></div>
+      <div id="context-detail"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ==================== 添加成员 ==================== -->
+<div class="modal hidden" id="add-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <span>添加群成员</span>
+      <button class="modal-x" id="am-close" title="关闭">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <label class="field">
+        <span class="field-label">名字</span>
+        <input id="am-name" placeholder="例如 Kimi、豆包、DeepSeek" autocomplete="off" />
+        <span class="field-hint">@ 时用的 id：<b id="am-id-preview">—</b></span>
+        <span class="field-hint">就是群里显示的名字，**不能有空格**（否则 @提及 会失效）</span>
+      </label>
+
+      <label class="field">
+        <span class="field-label">提供商</span>
+        <select id="am-provider"></select>
+        <span class="field-hint" id="am-note"></span>
+      </label>
+
+      <label class="field" id="am-baseurl-field" hidden>
+        <span class="field-label">接口地址</span>
+        <input id="am-baseurl" placeholder="https://…/v1" autocomplete="off" />
+        <span class="field-hint">任何 OpenAI 兼容端点：本地 Ollama / LM Studio / vLLM，或第三方网关</span>
+      </label>
+
+      <label class="field">
+        <span class="field-label">模型</span>
+        <div class="key-row">
+          <input id="am-model" placeholder="选择或直接填模型 id" autocomplete="off" />
+          <button type="button" class="ghost-btn key-detect" id="am-test">试一下</button>
+          <button type="button" class="ghost-btn key-detect" id="am-test-all">测一遍</button>
+        </div>
+          <div class="model-menu hidden" id="am-model-menu"></div>
+          <span class="field-hint">「试一下」验证当前这个模型；「测一遍」把列表里所有对话模型都测一次（每个只要 1 个 token），测完**只留下真能用的**。/models 列的是平台目录，不等于你账号都开通了。</span>
+        <span class="field-hint detect-msg hidden" id="am-test-msg"></span>
+      </label>
+
+      <label class="field">
+        <span class="field-label">API Key</span>
+        <div class="key-row">
+          <input id="am-key" type="password" placeholder="sk-…（已配过就留空）" autocomplete="off" />
+          <button type="button" class="ghost-btn key-detect" id="am-detect">识别</button>
+        </div>
+        <span class="field-hint">只写进 server/.env，不会存进配置、也不会回显。
+          粘贴后会自动识别它属于哪家，并列出该账号可用的模型。</span>
+        <span class="field-hint detect-msg hidden" id="am-detect-msg"></span>
+      </label>
+
+        <label class="field">
+          <span class="field-label">角色提示词（系统提示词）</span>
+          <textarea id="am-prompt" rows="4" spellcheck="false"
+            placeholder="留空 = 用内置模板生成一份。想自己写就直接填 —— 这会成为这位成员的系统提示词，决定了它是什么角色、怎么说话。"></textarea>
+          <span class="field-hint">
+            留空就用内置模板（分析师 / 批判者 / 工程师）生成一份，之后再改也行。
+            这里写的内容会存成这位成员**专属**的角色文件，不会影响别的成员。
+          </span>
+        </label>
+      <div class="field-row">
+        <label class="field field-half">
+          <span class="field-label">身份</span>
+          <select id="am-role">
+            <option value="member">组员</option>
+            <option value="captain">组长</option>
+          </select>
+        </label>
+        <label class="field field-half">
+          <span class="field-label">头像</span>
+          <input id="am-avatar" placeholder="🙂" maxlength="4" autocomplete="off" />
+        </label>
+      </div>
+
+
+
+      <div class="modal-msg hidden" id="am-msg"></div>
+    </div>
+
+    <div class="modal-foot">
+      <button class="ghost-btn" id="am-cancel">取消</button>
+      <button class="primary-btn" id="am-submit">添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 模型思考 · 实时控制台 ====================
+     聊天框里不再显示推理过程，全部收到这里。只显示「此刻正在思考」的那个成员，
+     跟着流式滚动；换人时自动切过去。每轮开始清空（只留本轮）。 -->
+<div class="modal hidden" id="think-modal">
+  <div class="modal-card think-card">
+    <div class="modal-head">
+      <span>模型思考</span>
+      <button class="modal-x" id="think-close" title="关闭">✕</button>
+    </div>
+    <div class="think-meta" id="think-meta"></div>
+    <div class="think-text" id="think-text"></div>
+    <div class="think-chips" id="think-chips"></div>
+  </div>
+</div>
+
+<!-- ==================== 编辑成员 ====================
+     点左栏成员行 → 「编辑」，或从「成员」菜单进来。
+     用户最常用的场景是换 API Key，所以 Key 这一栏单独放在最显眼的位置。 -->
+<div class="modal hidden" id="edit-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <span id="em-title">编辑成员</span>
+      <button class="modal-x" id="em-close" title="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="em-summary" id="em-summary"></div>
+
+      <label class="field">
+        <span class="field-label">API Key</span>
+        <input id="em-key" type="password" placeholder="留空 = 不修改" autocomplete="off" />
+        <span class="field-hint">要换密钥只填这一栏就行，其余保持不动。只写进 server\.env，不会回显。</span>
+      </label>
+
+      <label class="field">
+        <span class="field-label">名字</span>
+        <input id="em-name" autocomplete="off" />
+      </label>
+
+      <label class="field">
+        <span class="field-label">模型</span>
+        <input id="em-model" autocomplete="off" />
+      </label>
+
+      <label class="field">
+        <span class="field-label">角色提示词（系统提示词）</span>
+        <textarea id="em-prompt" rows="7" spellcheck="false"></textarea>
+        <span class="field-hint">
+          打开这个面板时会自动载入当前提示词。改了直接保存，不用去文件夹里找。
+        </span>
+      </label>
+
+      <div class="field-row">
+        <label class="field field-half">
+          <span class="field-label">头像</span>
+          <input id="em-avatar" autocomplete="off" maxlength="4" />
+        </label>
+        <label class="field field-half">
+          <span class="field-label">每轮最多发言</span>
+          <input id="em-turns" type="number" min="1" max="20" />
+        </label>
+      </div>
+
+      <div class="field-row">
+        <label class="field field-half">
+          <span class="field-label">temperature</span>
+          <input id="em-temp" type="number" min="0" max="2" step="0.1" />
+        </label>
+        <label class="field field-half">
+          <span class="field-label">max_tokens</span>
+          <input id="em-maxtok" type="number" min="256" max="200000" step="256" />
+        </label>
+      </div>
+
+      <div class="modal-msg hidden" id="em-msg"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="ghost-btn" id="em-cancel">取消</button>
+      <button class="primary-btn" id="em-submit">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 对话设置 ====================
+     需求 4：发言次数 / 深度 / 上下文，用户想随便调。
+     改完立刻生效（后端会热替换护栏，不用重启）。 -->
+<div class="modal hidden" id="settings-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <span>对话设置</span>
+      <button class="modal-x" id="st-close" title="关闭">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="st-note">这些是<b>单轮</b>的上限，用来防止群聊无限循环烧额度。改完立刻生效。</p>
+      <div id="st-fields" class="st-fields"></div>
+      <div class="modal-msg hidden" id="st-msg"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="ghost-btn" id="st-cancel">取消</button>
+      <button class="primary-btn" id="st-submit">保存</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

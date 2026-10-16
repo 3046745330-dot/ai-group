@@ -1,0 +1,86 @@
+==============================================================================
+AI 群聊 · 真实链路联调（真实 uvicorn + 真实多厂商模型）
+==============================================================================
+    解释器   ：C:\Users\yyy\Documents\deepseek-harness\default-workspace\campus-market\backend\.venv\Scripts\python.exe
+    服务地址 ：http://127.0.0.1:8831
+    DEEPSEEK_API_KEY 环境变量：不存在
+    问题     ：我们要不要把自研群聊内核换成 AG2 的 GroupChat？请组长拆解这个问题，并 @ 至少两名组员分别负责：@kimi 负责给出支持自研内核的论证，@dou…
+[PASS] 服务已启动：GET /api/health 返回 200 —— ok=True
+[PASS] GET /api/health JSON 含 providers 与 members —— 5 个 provider / 6 个成员
+
+--- provider 可用性（来自 /api/health）---
+    deepseek         不可用  未配置（DEEPSEEK_API_KEY）
+    moonshotai-cn    可用   密钥来源 dsh:MOONSHOTAI_CN_API_KEY
+    doubao           可用   密钥来源 dsh:ARK_API_KEY
+    openai           不可用  未配置（OPENAI_API_KEY）
+    mock             可用   离线通道，无需密钥
+
+--- 成员路由（来自 /api/health）---
+    captain    启用   deepseek/deepseek-v4-flash                 fallback=doubao/doubao-seed-2-1-pro-260915
+    kimi       启用   moonshotai-cn/kimi-k2.6                    fallback=doubao/doubao-seed-2-1-pro-260915
+    demo-bot   启用   mock/mock-fast                             fallback=无
+    doubao     启用   doubao/doubao-seed-2-1-pro-260915          fallback=moonshotai-cn/kimi-k2.6
+    gpt        未启用  openai/gpt-5.1-mini                        fallback=moonshotai-cn/kimi-k2.6
+    recorder   启用   deepseek/deepseek-v4-flash                 fallback=doubao/doubao-seed-2-1-pro-260915
+[PASS] provider 探测到 Kimi 与豆包可用（实测凭据生效） —— moonshotai-cn=True doubao=True
+[PASS] 无 DEEPSEEK_API_KEY 时 deepseek 明确报不可用（不假装可用） —— 未配置（DEEPSEEK_API_KEY）
+[PASS] GET / 返回群聊页面 HTML —— HTTP 200 / 2146 字节
+[PASS] WS /ws/group 首帧为 hello 且带 members 快照 —— 5 个成员 / limits={'max_messages': 10, 'max_depth': 2, 'max_context_chars': 9000, 'max_model_calls_per_run': 11}
+[PASS] POST /api/chat 受理成功（200） —— {"ok": true, "mode": "streaming-over-websocket", "limits": {"max_messages": 10, "max_depth": 2, "max_context_chars": 9000, "max_model_calls_per_run": 11}}
+
+--- 事件序列（649 条）---
+    hello → _http_chat → run_start → message → room_state → agent_status → message_start → notice → route_changed → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta → message_delta …
+
+--- 每个发言人的实际路由 ---
+    captain    captain   声明=deepseek/deepseek-v4-flash               实际=doubao/doubao-seed-2-1-pro-260915        279字（已降级）
+    kimi       member    声明=moonshotai-cn/kimi-k2.6                  实际=moonshotai-cn/kimi-k2.6                  543字
+    doubao     member    声明=doubao/doubao-seed-2-1-pro-260915        实际=moonshotai-cn/kimi-k2.6                  0字（已降级）
+    captain    captain   声明=deepseek/deepseek-v4-flash               实际=doubao/doubao-seed-2-1-pro-260915        224字（已降级）
+
+--- 事件流 notice ---
+    [warn] deepseek/deepseek-v4-flash 不可用（provider `deepseek` 缺少可用密钥（未配置（DEEPSEEK_API_KEY）），请配置环境变量或 DSH 凭据库后再试，或把该成员切到 m
+    [warn] doubao/doubao-seed-2-1-pro-260915 不可用（doubao/doubao-seed-2-1-pro-260915 流式读取中断：Request timed out.），已自动降级到 moon
+    [warn] 豆包·快速反驳 这一轮返回了空正文（路由 moonshotai-cn/kimi-k2.6，max_tokens=1000）。可能是思考内容占满了额度，建议调大 max_tokens。
+    [warn] deepseek/deepseek-v4-flash 不可用（provider `deepseek` 缺少可用密钥（未配置（DEEPSEEK_API_KEY）），请配置环境变量或 DSH 凭据库后再试，或把该成员切到 m
+[FAIL] 事件序列包含 run_start → message → message_start → message_delta → message_end → run_end
+[PASS] 组长（captain）真实发言
+[PASS] 被 @ 的组员真实发言（≥1 个非 mock 成员） —— kimi、doubao
+[FAIL] 记录员纪要产出（顺序在最后） —— 发言顺序：captain → kimi → doubao → captain
+[PASS] 全过程无 error 事件 —— []
+[PASS] 降级可观测：captain 未静默换模型（有 warning + route_changed + notice） —— deepseek/deepseek-v4-flash 不可用（provider `deepseek` 缺少可用密钥（未配置（DEEPSEEK_API_KEY）），请配置环境变量或 DSH 凭据库后再试
+[PASS] Kimi 与豆包至少各真实发言一次（各自声明的路由） —— captain@doubao/doubao-seed-2-1-pro-260915、kimi@moonshotai-cn/kimi-k2.6、doubao@moonshotai-cn/kimi-k2.6、captain@doubao/doubao-seed-2-1-pro-260915
+[PASS] 异厂：captain 与 kimi 实际生效的 provider 不同（跨厂商而非同厂自辩） —— captain=doubao kimi=moonshotai-cn
+[FAIL] 同源可见：事件流 route_summary 报出本轮 provider 分布与同源提示 —— 没有 route_summary 事件
+[FAIL] 记录员纪要里也写明本轮实际参与模型（避免只看纪要的人被误导） —— 纪要里实际路由相关片段：[]
+
+--- 实际调用记录 /api/diagnostics（每个真实调用的路由 / 目标 host / 成败 / 耗时）---
+    23:01:55 deepseek/deepseek-v4-flash               host=api.deepseek.com                 ok=False chars=0     0.0s provider `deepseek` 缺少可用密钥（未配置（DEEPSEEK_API_KEY）），请配置环境变
+    23:02:08 doubao/doubao-seed-2-1-pro-260915        host=ark.cn-beijing.volces.com        ok=True  chars=279   13.52s 
+    23:03:00 moonshotai-cn/kimi-k2.6                  host=api.moonshot.cn                  ok=True  chars=543   52.09s 
+    23:06:20 doubao/doubao-seed-2-1-pro-260915        host=ark.cn-beijing.volces.com        ok=False chars=0     199.33s Request timed out.
+    23:06:20 moonshotai-cn/kimi-k2.6                  host=api.moonshot.cn                  ok=False chars=0     0.31s temperature 被上游拒绝，已改为不传该参数重试一次：Error code: 400 - {'error
+    23:06:49 moonshotai-cn/kimi-k2.6                  host=api.moonshot.cn                  ok=True  chars=0     29.57s 
+    23:06:49 deepseek/deepseek-v4-flash               host=api.deepseek.com                 ok=False chars=0     0.0s provider `deepseek` 缺少可用密钥（未配置（DEEPSEEK_API_KEY）），请配置环境变
+    23:08:28 doubao/doubao-seed-2-1-pro-260915        host=ark.cn-beijing.volces.com        ok=True  chars=224   98.34s 
+[PASS] 事件流 route 与真实调用记录一一对应（不存在静默换模型） —— 事件流路由 ['doubao/doubao-seed-2-1-pro-260915', 'moonshotai-cn/kimi-k2.6'] / 成功调用 ['doubao/doubao-seed-2-1-pro-260915', 'moonshotai-cn/kimi-k2.6']
+[PASS] 降级前的主路由确实被尝试过（requested_route 有失败记录） —— 失败调用 ['deepseek/deepseek-v4-flash', 'doubao/doubao-seed-2-1-pro-260915', 'moonshotai-cn/kimi-k2.6']
+
+--- 真实发言正文片段（来自事件流 message_end）---
+    [captain @ doubao/doubao-seed-2-1-pro-260915] 【结论】先不直接切换，应由支持自研与迁移风险两侧完成论证后，再按可控性、成本、稳定性和团队承载力做决策。  【拆解】   1. 自研内核的保留价值论证 → @kimi：从架构可控性、业务定制、长期成本、性能与演进自由度等方面，给出继续自研的核心理由，并说明成立前提。   2. 切换 AG2 GroupChat 的反驳与风险评估 → @doubao：重点指出迁移成本、功能缺口、生态锁定、兼容性、稳定
+    [kimi @ moonshotai-cn/kimi-k2.6] 【要点】只要团队还能维护核心模块，自研内核就该保留。AG2 GroupChat 的通用抽象在调度可控性、业务定制深度和框架迭代风险三个维度上，目前无法替代自研代码的精确控制。  【依据】 1. 架构可控性：AG2 的 SpeakerSelection 和嵌套对话管理是黑盒封装，若要在消息路由里插入业务熔断、审计或自定义重试，往往要魔改源码；自研内核允许在 Agent 唤醒、状态回滚等关键环节做行级
+    [doubao @ moonshotai-cn/kimi-k2.6] 
+    [captain @ doubao/doubao-seed-2-1-pro-260915] 【结论】当前仅收到支持自研内核的单侧论证，风险反驳侧无有效输出，暂不具备决策收敛条件，需补全材料。 【拆解】   1. 补全AG2 GroupChat迁移风险评估 → @doubao：按要求覆盖迁移成本、功能缺口、生态锁定、兼容性、稳定性、运维负担、隐性风险维度，输出结构化风险清单并逐项标注等级，需针对性回应自研侧提出的可控性、定制化等核心优势论点。 【验收标准】两侧论点可逐项对照，材料完整度足以
+
+--- DSH 用量账本交叉核对 ~/.dsh/.dshw-usage.json ---
+    运行前账本条目：128；本次运行期间新增：4 条
+    23:02:33  deepseek-flash                   tokens=882657 cost=0.02652908
+    23:05:56  deepseek-flash                   tokens=2399443 cost=0.07115912
+    23:06:32  deepseek-flash                   tokens=1231114 cost=0.04054196
+    23:08:49  deepseek-flash                   tokens=1564487 cost=0.04673256
+[PASS] 账本 vs 事件流交叉核对已完成并给出明确结论 —— 账本本次新增条目只有 ['deepseek-flash']，与本应用实际路由 ['doubao/doubao-seed-2-1-pro-260915', 'moonshotai-cn/kimi-k2.6'] 没有交集 —— 说明账本计的是 DSH 账号侧用量，不覆盖本应用直连厂商的调用，因此它既不能证实也不能证伪本应用的路由；路由证据以 /api/diagnostics 的实际调用记录（目标 host + 上游真实报错）与事件流 message_end 正文为准
+
+    服务端日志：scripts\integration_server.log
+
+==============================================================================
+结果：16/20 通过，4 项未通过 —— 事件序列包含 run_start → message → message_start → message_delta → message_end → run_end, 记录员纪要产出（顺序在最后）, 同源可见：事件流 route_summary 报出本轮 provider 分布与同源提示, 记录员纪要里也写明本轮实际参与模型（避免只看纪要的人被误导）
+EXIT=1

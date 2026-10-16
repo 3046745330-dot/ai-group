@@ -1,0 +1,5 @@
+[desktop] 数据目录  : C:\Users\yyy\Documents\deepseek-harness\default-workspace\ai-group\dist\ai-group-desktop
+[desktop] 资源目录  : C:\Users\yyy\Documents\deepseek-harness\default-workspace\ai-group\dist\ai-group-desktop\_internal
+[desktop] 配置目录  : C:\Users\yyy\Documents\deepseek-harness\default-workspace\ai-group\dist\ai-group-desktop\config  (存在=True)
+[desktop] 静态资源  : C:\Users\yyy\Documents\deepseek-harness\default-workspace\ai-group\dist\ai-group-desktop\_internal\web  (存在=True)
+[desktop] 启动服务：http://127.0.0.1:8851/
