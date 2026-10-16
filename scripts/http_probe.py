@@ -1,8 +1,8 @@
-"""只读 HTTP 冒烟（checker 用）：对已在跑的服务做 /api/health 与 / 的检查，不发聊天请求。
+﻿"""只读 HTTP 冒烟（checker 用）：对已在跑的服务做 /api/health 与 / 的检查，不发聊天请求。
 
 用法（在 ai-group 目录下）::
 
-    ..\\campus-market\\backend\\.venv\\Scripts\\python.exe scripts\\http_probe.py --port 8801
+    .\.venv\Scripts\python.exe scripts\\http_probe.py --port 8801
 
 设计成不发 /api/chat：这样可以对**真实配置**的服务做验收 1/2，而完全不消耗模型额度。
 """

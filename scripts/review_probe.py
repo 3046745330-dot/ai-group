@@ -1,8 +1,8 @@
-"""评审用独立探针（checker，不属于实现）：把 README/自检声明与代码实际行为逐条对照。
+﻿"""评审用独立探针（checker，不属于实现）：把 README/自检声明与代码实际行为逐条对照。
 
 用法（在 ai-group 目录下；HTTP 部分需要先起一个 mock-only 服务）::
 
-    ..\\campus-market\\backend\\.venv\\Scripts\\python.exe scripts\\review_probe.py --port 8804
+    .\.venv\Scripts\python.exe scripts\\review_probe.py --port 8804
 
 只读实现，不修改任何 group/web/config 文件。
 """

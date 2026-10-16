@@ -1,8 +1,8 @@
-"""独立验证探针（checker 用，不属于实现）：对 t4 论证者提出的指控逐条到代码里核实。
+﻿"""独立验证探针（checker 用，不属于实现）：对 t4 论证者提出的指控逐条到代码里核实。
 
 用法（在 ai-group 目录下）::
 
-    ..\\campus-market\\backend\\.venv\\Scripts\\python.exe scripts\\claim_probe.py
+    .\.venv\Scripts\python.exe scripts\\claim_probe.py
 
 只读地使用 group/ 下的实现，不做任何修改；输出为「指控 → 观察 → 判定」。
 探针会自适应实现里 _build_messages / _transcript 的同步或异步签名，

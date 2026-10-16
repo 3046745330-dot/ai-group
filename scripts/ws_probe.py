@@ -1,8 +1,8 @@
-"""独立端到端验证（checker 用，不属于实现）：真实进程边界上打 HTTP + WebSocket。
+﻿"""独立端到端验证（checker 用，不属于实现）：真实进程边界上打 HTTP + WebSocket。
 
 用法（在 ai-group 目录下，服务已用 uvicorn 起在 127.0.0.1:8801）::
 
-    ..\\campus-market\\backend\\.venv\\Scripts\\python.exe scripts\\ws_probe.py --port 8801
+    .\.venv\Scripts\python.exe scripts\\ws_probe.py --port 8801
 
 只发请求、只观察事件，不修改任何实现文件。
 """

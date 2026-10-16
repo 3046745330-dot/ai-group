@@ -1,0 +1,22 @@
+# AI 群聊 · 多模型协作系统 —— 运行依赖
+#
+# 安装：
+#   python -m venv .venv
+#   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+#
+# 版本号是本机实测通过的组合，不是随手写的。
+
+# Web 服务与接口
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.7.0
+
+# LLM 调用（OpenAI 兼容协议，四家厂商共用同一个客户端）
+openai>=1.40.0
+
+# 网络探测与异步
+httpx>=0.27.0
+websockets>=12.0
+
+# 配置装载
+PyYAML>=6.0

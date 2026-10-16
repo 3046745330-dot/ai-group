@@ -28,35 +28,31 @@ ai-group/
 └── docs/evidence/            # 自检留档
 ```
 
-## 1. 用哪个解释器（写死的规则，不猜）
+## 1. 环境准备（先装依赖，再启动）
 
-本项目**不创建 `ai-group/.venv`**（当前目录下没有这个 venv）。本机已验证可用的解释器是
-复用 campus-market 的那一个：
+本项目自带 `requirements.txt`，**不依赖任何外部目录**：
 
 ```powershell
-# ★ 本 README 所有命令都以这个解释器为准（已实测：fastapi 0.115.6 / openai 3.29.0）
-..\campus-market\backend\.venv\Scripts\python.exe
+cd ai-group
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-`scripts/run.ps1` 的选择规则（找不到就**报错退出**，绝不静默退回到没装 fastapi 的 python）：
+> 为什么要自建 venv：早期版本复用相邻项目的 venv，导致仓库 clone 到别的机器上跑不起来。
+> 现在依赖清单在本仓库内自足，换机器只要 `pip install -r requirements.txt`。
+
+`scripts/run.ps1` 的选择规则（找不到就**报错退出**，绝不静默退回没有依赖的解释器）：
 
 1. `-Python <路径>` 显式指定；
-2. `ai-group\.venv\Scripts\python.exe`（如果哪天真的建了它）；
-3. `..\campus-market\backend\.venv\Scripts\python.exe`；
-4. 都不满足 → 打印建 venv 的命令并以退出码 1 结束。**DSH 自带的 python 没有 fastapi，不会被选中。**
-
-想自建 venv 的话：
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install fastapi "uvicorn[standard]" openai httpx pyyaml
-```
+2. `ai-group\.venv\Scripts\python.exe`（推荐，上面的命令就是建它）；
+3. 系统 PATH 里的 `python` / `python3` / `py`（会探测依赖是否齐全）；
+4. 都不满足 → 打印建 venv 的命令并以退出码 1 结束。
 
 ## 2. 快速开始
 
 ```powershell
 cd ai-group
-.\scripts\run.ps1 -Port 8801        # 起服务（默认用上面第 3 条那个解释器）
+.\scripts\run.ps1 -Port 8801        # 起服务
 # 浏览器打开 http://127.0.0.1:8801
 ```
 
@@ -64,7 +60,7 @@ cd ai-group
 
 ```powershell
 cd ai-group
-..\campus-market\backend\.venv\Scripts\python.exe -m uvicorn group.app:app --host 127.0.0.1 --port 8801
+.\.venv\Scripts\python.exe -m uvicorn group.app:app --host 127.0.0.1 --port 8801
 ```
 
 离线模式（不调用任何真实模型，零费用）：
@@ -222,7 +218,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8801/api/chat -ContentType 
 
 ```powershell
 cd ai-group
-$py = "..\campus-market\backend\.venv\Scripts\python.exe"
+$py = ".\.venv\Scripts\python.exe"
 
 # 1) 离线自检（零额度，必须 EXIT=0）：配置/角色/@解析/事件序列/护栏/降级/失败可见性
 & $py scripts\smoke_test.py --mock-only

@@ -5,10 +5,9 @@
 # 解释器选择规则（写死，不再「猜」）：
 #   1) -Python 显式指定；
 #   2) ai-group\.venv\Scripts\python.exe（本项目自己的 venv，存在就用）；
-#   3) ..\campus-market\backend\.venv\Scripts\python.exe（本机已验证含 fastapi/uvicorn/openai）；
+#   3) 系统 PATH 里的 python / python3；
 #   4) 都不满足 → 直接报错退出，并打印建 venv 的命令。
-# 绝不静默退回到没有 fastapi 的解释器（例如 DSH 自带的 python），
-# 因为那会以一个看不懂的堆栈结束。
+# 绝不静默退回到一个没有依赖的解释器，因为那会以一个看不懂的堆栈结束。
 # =============================================================================
 param(
   [int]$Port = 8801,
@@ -24,7 +23,10 @@ Set-Location $root
 $candidates = New-Object System.Collections.Generic.List[string]
 if ($Python) { $candidates.Add($Python) }
 $candidates.Add((Join-Path $root ".venv\Scripts\python.exe"))
-$candidates.Add((Join-Path $root "..\campus-market\backend\.venv\Scripts\python.exe"))
+foreach ($name in @("python", "python3", "py")) {
+  $cmd = Get-Command $name -ErrorAction SilentlyContinue
+  if ($cmd) { $candidates.Add($cmd.Source) }
+}
 
 $exe = $null
 foreach ($candidate in $candidates) {
@@ -37,10 +39,11 @@ foreach ($candidate in $candidates) {
 
 if (-not $exe) {
   Write-Host "[run] 找不到带依赖的 Python 解释器。" -ForegroundColor Red
-  Write-Host "      本项目不静默退回到没装依赖的解释器（例如 DSH 自带 python）。" -ForegroundColor Red
-  Write-Host "      请二选一：" -ForegroundColor Yellow
-  Write-Host "        a) 复用已装好依赖的 venv：.\scripts\run.ps1 -Python ..\campus-market\backend\.venv\Scripts\python.exe"
-  Write-Host "        b) 自建 venv：python -m venv .venv; .\.venv\Scripts\python.exe -m pip install fastapi `"uvicorn[standard]`" openai httpx pyyaml"
+  Write-Host "      本项目不静默退回到没装依赖的解释器。" -ForegroundColor Red
+  Write-Host "      请先建 venv 并安装依赖：" -ForegroundColor Yellow
+  Write-Host "        python -m venv .venv"
+  Write-Host "        .\.venv\Scripts\python.exe -m pip install -r requirements.txt"
+  Write-Host "      或用已有解释器：.\scripts\run.ps1 -Python <解释器路径>" -ForegroundColor Yellow
   exit 1
 }
 

@@ -4,8 +4,8 @@
 
 用法（在 ai-group 目录下）::
 
-    ..\\campus-market\\backend\\.venv\\Scripts\\python.exe scripts\\integration_check.py
-    ..\\campus-market\\backend\\.venv\\Scripts\\python.exe scripts\\integration_check.py --port 8823
+    .\\.venv\\Scripts\\python.exe scripts\\integration_check.py
+    .\\.venv\\Scripts\\python.exe scripts\\integration_check.py --port 8823
 
 它会：
   1. 用真实配置在子进程里起 `uvicorn group.app:app`（**不注入任何密钥**）；
@@ -38,8 +38,35 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-VENV_PYTHON = PROJECT_ROOT.parent / "campus-market" / "backend" / ".venv" / "Scripts" / "python.exe"
 USAGE_LEDGER = Path.home() / ".dsh" / ".dshw-usage.json"
+
+
+def resolve_python() -> str:
+    """挑一个真的装了本项目依赖的解释器。
+
+    顺序：本项目 .venv → 当前解释器（若依赖齐全）→ 报错。
+    不用「相邻项目的 venv」这种外部路径，否则别人 clone 下来跑不了。
+    """
+    candidates = [
+        PROJECT_ROOT / ".venv" / "Scripts" / "python.exe",  # Windows
+        PROJECT_ROOT / ".venv" / "bin" / "python",          # POSIX
+        Path(sys.executable),
+    ]
+    probe = "import fastapi, uvicorn, openai, yaml"
+    for cand in candidates:
+        if not cand.exists():
+            continue
+        try:
+            r = subprocess.run([str(cand), "-c", probe], capture_output=True, timeout=30)
+        except Exception:
+            continue
+        if r.returncode == 0:
+            return str(cand)
+    raise SystemExit(
+        "找不到装了依赖的解释器。请先：\n"
+        "  python -m venv .venv\n"
+        "  .\\.venv\\Scripts\\python.exe -m pip install -r requirements.txt"
+    )
 
 
 def ledger_snapshot() -> dict:
@@ -204,7 +231,7 @@ async def main() -> int:
 
     port = free_port(args.port)
     base = f"http://127.0.0.1:{port}"
-    python = str(VENV_PYTHON) if VENV_PYTHON.exists() else sys.executable
+    python = resolve_python()
 
     env = dict(os.environ)
     deepseek_key_present = bool(env.get("DEEPSEEK_API_KEY", "").strip())

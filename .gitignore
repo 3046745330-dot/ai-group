@@ -35,3 +35,9 @@ desktop.ini
 *.log
 *.tmp
 _runtime_extract.txt
+
+# pip 中断安装留下的临时目录
+pip-unpack-*/
+pip-build-tracker-*/
+pip-ephem-wheel-cache-*/
+pip-install-*/

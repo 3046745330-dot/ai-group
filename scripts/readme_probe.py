@@ -1,4 +1,4 @@
-"""README 与实现一致性探针（checker 用，不属于实现）。
+﻿"""README 与实现一致性探针（checker 用，不属于实现）。
 
 针对 README.md 里几条「文档写有」的能力逐条到代码/运行结果里核实：
 
@@ -8,7 +8,7 @@
 
 用法（在 ai-group 目录下）::
 
-    ..\\campus-market\\backend\\.venv\\Scripts\\python.exe scripts\\readme_probe.py
+    .\.venv\Scripts\python.exe scripts\\readme_probe.py
 """
 
 from __future__ import annotations
