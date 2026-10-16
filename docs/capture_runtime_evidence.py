@@ -2,7 +2,7 @@
 
 用法（在 ai-group 目录下，服务已在 8801 端口跑着真实配置）::
 
-    ..\\campus-market\\backend\\.venv\\Scripts\\python.exe docs\\capture_runtime_evidence.py --port 8801
+    .\\.venv\\Scripts\\python.exe docs\\capture_runtime_evidence.py --port 8801
 
 它只发请求、只读事件，不修改任何实现文件。输出：
   * 终端：人类可读的事实摘要（发言顺序 / 实际生效路由 / 降级 / 纪要长度 / notice / error）

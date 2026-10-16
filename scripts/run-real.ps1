@@ -20,14 +20,24 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 # --- 1. 解析解释器（与 run.ps1 同规则，写死不改） ---------------------------
-$candidates = @()
-if ($Python) { $candidates += $Python }
-$candidates += @(
-  (Join-Path $root ".venv\Scripts\python.exe"),
-  (Join-Path $root "..\campus-market\backend\.venv\Scripts\python.exe")
-)
-$py = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $py) { throw "找不到可用解释器。请先建 venv，或 -Python 显式指定。" }
+$candidates = New-Object System.Collections.Generic.List[string]
+if ($Python) { $candidates.Add($Python) }
+$candidates.Add((Join-Path $root ".venv\Scripts\python.exe"))
+foreach ($name in @("python", "python3", "py")) {
+  $cmd = Get-Command $name -ErrorAction SilentlyContinue
+  if ($cmd) { $candidates.Add($cmd.Source) }
+}
+
+$py = $null
+foreach ($cand in $candidates) {
+  $full = [System.IO.Path]::GetFullPath($cand)
+  if (-not (Test-Path $full)) { continue }
+  $probe = & $full -c "import fastapi, uvicorn, openai, yaml; print('ok')" 2>$null
+  if ($LASTEXITCODE -eq 0 -and $probe -eq "ok") { $py = $full; break }
+}
+if (-not $py) {
+  throw "找不到装了依赖的解释器。请先：python -m venv .venv; .\.venv\Scripts\python.exe -m pip install -r requirements.txt"
+}
 Write-Host "[run-real] 解释器：$py" -ForegroundColor Cyan
 
 # --- 2. 补读用户级 DEEPSEEK_API_KEY -----------------------------------------

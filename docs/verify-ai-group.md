@@ -1,4 +1,4 @@
-# ai-group 独立验证报告（t2）
+﻿# ai-group 独立验证报告（t2）
 
 - 验证人：checker（独立于实现者 builder）
 - 验证方式：**自己起服务、自己发 HTTP/WebSocket 请求、自己读事件流**；不采信实现者自述
@@ -42,7 +42,7 @@ Get-ChildItem -Recurse -File group, web, config | Where-Object { $_.FullName -no
 
 ## 1. 环境与端口
 
-- 解释器：`..\campus-market\backend\.venv\Scripts\python.exe`（Python 3.12.14）
+- 解释器：`.\.venv\Scripts\python.exe`（Python 3.12.14）
 - **8801**：真实配置实例（验收 1/2），只发 `/api/health`、`/`，**不发聊天请求**，零额度消耗
 - **8802**：`SMOKE_MOCK_ONLY=1` 实例（验收 3/4 的聊天/额度护栏），保证确定性与零花费
 - **8803**：一次性冷启动计时实例，测完即杀
@@ -74,7 +74,7 @@ INFO:     Uvicorn running on http://127.0.0.1:8801 (Press CTRL+C to quit)
 命令（在 ai-group 目录下）：
 
 ```powershell
-..\campus-market\backend\.venv\Scripts\python.exe -m uvicorn group.app:app --host 127.0.0.1 --port 8801
+.\.venv\Scripts\python.exe -m uvicorn group.app:app --host 127.0.0.1 --port 8801
 ```
 
 判定：就绪 1.35s ≪ 30s；`Uvicorn running` 出现；日志中无 Traceback
@@ -97,7 +97,7 @@ INFO:     Uvicorn running on http://127.0.0.1:8801 (Press CTRL+C to quit)
 
 ```powershell
 cd ai-group
-..\campus-market\backend\.venv\Scripts\python.exe -c "import urllib.request,json;d=json.load(urllib.request.urlopen('http://127.0.0.1:8801/api/health'));print(d['providers'])"
+.\.venv\Scripts\python.exe -c "import urllib.request,json;d=json.load(urllib.request.urlopen('http://127.0.0.1:8801/api/health'));print(d['providers'])"
 # EXIT=0
 # [{'provider': 'deepseek', 'ok': False, 'detail': '未配置（DEEPSEEK_API_KEY）'},
 #  {'provider': 'moonshotai-cn', 'ok': True, 'detail': '密钥来源 dsh:MOONSHOTAI_CN_API_KEY'},
@@ -158,14 +158,14 @@ mock-only 实例（8802），`scripts/ws_probe.py`：
 
 | # | 命令 | 结果 |
 |---|---|---|
-| 1 | `cd ai-group; ..\campus-market\backend\.venv\Scripts\python.exe scripts\smoke_test.py --mock-only` | **EXIT=0**，`结果：全部通过（64 项检查）`，耗时 24.2s（`docs/verify/smoke-mock-only.txt`） |
-| 2 | `cd ai-group; ..\campus-market\backend\.venv\Scripts\python.exe -c "import urllib.request,json;d=json.load(urllib.request.urlopen('http://127.0.0.1:8801/api/health'));print(d['providers'])"` | **EXIT=0**，打印 5 个 provider 的 ok/detail（见 A2） |
+| 1 | `cd ai-group; .\.venv\Scripts\python.exe scripts\smoke_test.py --mock-only` | **EXIT=0**，`结果：全部通过（64 项检查）`，耗时 24.2s（`docs/verify/smoke-mock-only.txt`） |
+| 2 | `cd ai-group; .\.venv\Scripts\python.exe -c "import urllib.request,json;d=json.load(urllib.request.urlopen('http://127.0.0.1:8801/api/health'));print(d['providers'])"` | **EXIT=0**，打印 5 个 provider 的 ok/detail（见 A2） |
 
 ## 4. 独立探针清单（均在 `ai-group/scripts/`，只读实现）
 
 ```powershell
 cd ai-group
-$py = "..\campus-market\backend\.venv\Scripts\python.exe"
+$py = ".\.venv\Scripts\python.exe"
 & $py scripts\smoke_test.py --mock-only            # EXIT=0, 64/64
 & $py scripts\http_probe.py --port 8801            # 真实配置：2/2
 & $py scripts\http_probe.py --port 8802 --expect-mock
@@ -190,7 +190,7 @@ $py = "..\campus-market\backend\.venv\Scripts\python.exe"
 
 ```powershell
 cd ai-group
-$py = "..\campus-market\backend\.venv\Scripts\python.exe"
+$py = ".\.venv\Scripts\python.exe"
 
 # A1/A2：真实配置实例（只读接口，零额度）
 Start-Job -ScriptBlock { Set-Location $using:PWD; & $using:py -m uvicorn group.app:app --host 127.0.0.1 --port 8801 }

@@ -1,4 +1,4 @@
-# t3 评审报告：ai-group 是否真实满足契约与工程可靠性要求
+﻿# t3 评审报告：ai-group 是否真实满足契约与工程可靠性要求
 
 - 评审人：checker（独立于实现者）
 - 被评审任务：t1（实现）
@@ -102,7 +102,7 @@ t1 的 8 条验收标准里 **第 8 条（README 与实现一致）failed**，�
 
 ```powershell
 cd ai-group
-$py = "..\campus-market\backend\.venv\Scripts\python.exe"
+$py = ".\.venv\Scripts\python.exe"
 & $py scripts\smoke_test.py --mock-only                     # EXIT=0, 64/64
 $env:SMOKE_MOCK_ONLY="1"
 Start-Job { Set-Location $using:PWD; & $using:py -m uvicorn group.app:app --port 8804 }

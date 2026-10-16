@@ -1,4 +1,4 @@
-# AgentTeams 本轮成果总报告 + ai-group 运行时真实证据
+﻿# AgentTeams 本轮成果总报告 + ai-group 运行时真实证据
 
 - 报告人：builder（实现工程师，团队成员）
 - 日期：2026-10-12
@@ -112,14 +112,14 @@ ai-group/
 ```powershell
 cd ai-group
 # 真实配置（会长真实调用 moonshotai-cn / doubao；deepseek 无 key → 降级）
-..\campus-market\backend\.venv\Scripts\python.exe -m uvicorn group.app:app --port 8801
+.\.venv\Scripts\python.exe -m uvicorn group.app:app --port 8801
 
 # 或一键脚本
 .\scripts\run.ps1 -Port 8801            # 解释器规则写死在脚本里
 .\scripts\run.ps1 -Port 8801 -MockOnly  # 全部走离线通道，零额度
 ```
 
-解释器规则：优先 `ai-group\.venv`，否则回退 `..\campus-market\backend\.venv`，
+解释器规则：优先 `ai-group\.venv`，否则回退系统 PATH 里的 python，
 都不可用就报错退出（**不会**静默退回没有 fastapi 的 DSH python）。
 
 ### 2.3 接口清单（`app.routes` 实测 13 条 = 8 个项目路由 + FastAPI 内置 3 条 + docs 重定向 + `/static`）
@@ -186,11 +186,11 @@ cd ai-group
 ```powershell
 # 1) 后台起真实配置服务（契约 verify 命令，端口 8801）
 cd ai-group
-..\campus-market\backend\.venv\Scripts\python.exe -m uvicorn group.app:app --port 8801
+.\.venv\Scripts\python.exe -m uvicorn group.app:app --port 8801
 # 启动日志：docs/evidence/runtime-8801-uvicorn.log（Uvicorn running on http://127.0.0.1:8801）
 
 # 2) 投喂一句需要协作的问题并抓取 WS 事件流
-..\campus-market\backend\.venv\Scripts\python.exe docs\capture_runtime_evidence.py --port 8801
+.\.venv\Scripts\python.exe docs\capture_runtime_evidence.py --port 8801
 ```
 
 - **实际端口：8801**（`/api/health` 实测 `mock_only=False`，即真实配置实例）。

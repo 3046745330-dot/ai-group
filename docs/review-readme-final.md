@@ -23,8 +23,12 @@
 
 ## 逐条核对（8/8 passed）
 
+> **历史记录说明**：本文是某一时点的评审快照，记录的是**当时**的状态（当时解释器复用相邻项目的 venv）。
+> 后续已修复为仓库自足（新增 `requirements.txt`，脚本不再引用外部路径），当前状态以 README.md 与
+> `docs/evidence/STATUS.md` 为准。此文件保留原文不改，以维持评审记录的真实性。
+
 **① 解释器规则 — passed**
-README.md:31-53 声明：不创建 `ai-group/.venv`、复用 `..\campus-market\backend\.venv\Scripts\python.exe`、run.ps1 四条选择规则、找不到就 exit 1、DSH 自带 python 不会被选中。
+README.md:31-53 声明：不创建 `ai-group/.venv`、复用 `.\.venv\Scripts\python.exe`、run.ps1 四条选择规则、找不到就 exit 1、DSH 自带 python 不会被选中。
 证据：`scripts/run.ps1:13-17`（param：`-Python`/`-Port`/`-MockOnly`）、`:24-27`（候选顺序 = 显式指定 → 本项目 .venv → campus-market venv，**候选里没有 DSH python**）、`:30-35`（逐个探测 `import fastapi, uvicorn, openai, yaml`，缺依赖则跳过）、`:38-45`（找不到 → 红字报错 + `exit 1` + 打印建 venv 命令）、`:71`（`& $exe -m uvicorn group.app:app --host 127.0.0.1 --port $Port`）。
 `ai-group/.venv` 不存在：glob `ai-group/{.venv,docs,scripts}/*` 无任何 `.venv` 命中（与该声明一致）。
 README.md:52 的 pip 列表与 run.ps1:43 的提示一致。README.md:37 的「fastapi 0.115.6 / openai 3.29.0」是运行期版本事实，**我无法复测**（见盲点）。
@@ -90,10 +94,10 @@ Get-FileHash README.md -Algorithm SHA256          # 期望前缀 53F43135…（�
 (Get-Content README.md).Count                     # 期望 282
 
 # (b) 8 项核对里可直接打印的部分
-..\campus-market\backend\.venv\Scripts\python.exe -c "from group.config import load_config,check_invariants;c=load_config();print([(a.id,a.route,a.fallback_route,a.enabled) for a in c.agents]);print('invariants',check_invariants(c))"
-..\campus-market\backend\.venv\Scripts\python.exe -c "from group.engine import RunLimits;print(RunLimits())"
-..\campus-market\backend\.venv\Scripts\python.exe -c "from group.app import app;print(sorted({r.path for r in app.routes}))"
-..\campus-market\backend\.venv\Scripts\python.exe -c "from group.ag2_adapter import describe;print(describe()['detail'])"
+.\.venv\Scripts\python.exe -c "from group.config import load_config,check_invariants;c=load_config();print([(a.id,a.route,a.fallback_route,a.enabled) for a in c.agents]);print('invariants',check_invariants(c))"
+.\.venv\Scripts\python.exe -c "from group.engine import RunLimits;print(RunLimits())"
+.\.venv\Scripts\python.exe -c "from group.app import app;print(sorted({r.path for r in app.routes}))"
+.\.venv\Scripts\python.exe -c "from group.ag2_adapter import describe;print(describe()['detail'])"
 ```
 （其中 `RunLimits()` 期望 `max_messages=10, max_depth=2, max_context_chars=9000`；`check_invariants` 期望 `[]`；`app.routes` 期望含 `/`、`/api/health`、`/api/snapshot`、`/api/diagnostics`、`/api/ag2`、`/api/chat`、`/api/reset`、`/ws/group`。）
 

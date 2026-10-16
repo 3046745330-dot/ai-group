@@ -7,7 +7,7 @@
 命令（在 ai-group 目录下）：
 
 ```powershell
-..\campus-market\backend\.venv\Scripts\python.exe docs\verify_f1_f2_probe.py
+.\.venv\Scripts\python.exe docs\verify_f1_f2_probe.py
 "EXIT=$LASTEXITCODE"      # → EXIT=0，7 项全部 PASS
 ```
 

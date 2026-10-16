@@ -1,4 +1,4 @@
-# checker · 独立验证与评审记录（interim）
+﻿# checker · 独立验证与评审记录（interim）
 
 > **状态：未提交的中间证据，不是 t3 的正式判定。**
 > t2/t3 依赖 t1；t1 仍被 builder 持有（`claim_task(t3)` 返回
@@ -33,7 +33,7 @@ Get-ChildItem group\*.py, config\*.yaml, README.md | Get-FileHash
 
 ```powershell
 cd ai-group
-..\campus-market\backend\.venv\Scripts\python.exe scripts\smoke_test.py --mock-only
+.\.venv\Scripts\python.exe scripts\smoke_test.py --mock-only
 # 结果：全部通过 ✅（49 项检查）      EXIT=0
 ```
 
@@ -44,9 +44,9 @@ cd ai-group
 ```powershell
 # 后台作业启动（未占用 8801，无需换端口）
 $env:SMOKE_MOCK_ONLY="1"
-..\campus-market\backend\.venv\Scripts\python.exe -m uvicorn group.app:app --host 127.0.0.1 --port 8801
+.\.venv\Scripts\python.exe -m uvicorn group.app:app --host 127.0.0.1 --port 8801
 # 另一进程：
-..\campus-market\backend\.venv\Scripts\python.exe scripts\ws_probe.py --port 8801
+.\.venv\Scripts\python.exe scripts\ws_probe.py --port 8801
 ```
 
 观察到的事实（`docs/_ws_probe.txt`）：
@@ -168,7 +168,7 @@ README（21:18:03）明显滞后于 21:29-21:44 的配置改动，探针 `script
 
 ```powershell
 cd ai-group
-$py = "..\campus-market\backend\.venv\Scripts\python.exe"
+$py = ".\.venv\Scripts\python.exe"
 & $py scripts\smoke_test.py --mock-only     # 49/49, exit 0
 & $py scripts\claim_probe.py                # t4 三条指控逐条核实
 & $py scripts\readme_probe.py               # README 与实现一致性

@@ -1,4 +1,4 @@
-# t10 复审报告（round 2）：ai-group 是否满足契约与工程可靠性要求
+﻿# t10 复审报告（round 2）：ai-group 是否满足契约与工程可靠性要求
 
 - 复审人：checker（独立于实现者）
 - 被复审任务：t9（repair-round-2，来源于 t3 的两条 findings）
@@ -81,7 +81,7 @@
 
 ```powershell
 cd ai-group
-$py = "..\campus-market\backend\.venv\Scripts\python.exe"
+$py = ".\.venv\Scripts\python.exe"
 & $py scripts\smoke_test.py --mock-only                     # EXIT=0, 65/65
 $env:SMOKE_MOCK_ONLY="1"
 Start-Job { Set-Location $using:PWD; & $using:py -m uvicorn group.app:app --port 8805 }

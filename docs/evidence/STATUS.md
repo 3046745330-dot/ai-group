@@ -4,8 +4,8 @@
 
 ## 1. `smoke-mock-only.txt` — 离线自检（当前 head，零额度）
 
-- 命令：`..\campus-market\backend\.venv\Scripts\python.exe scripts\smoke_test.py --mock-only`
-- 结果：**64 项检查全部 PASS，`EXIT=0`**（在控制台直接取 `$LASTEXITCODE`，不是只看重定向文本）
+- 命令：`.\.venv\Scripts\python.exe scripts\smoke_test.py --mock-only`
+- 结果：**92 项检查全部 PASS，`EXIT=0`**（用本仓库自建 venv 复跑，零额度）
 - 覆盖：配置装载 / 每个成员独立角色提示词 / 记录员条目 / 配置不变量（fallback 异厂、标签唯一）/
   @提及抽取与宽松匹配 / 弱 token 与邮箱不误命中 / 事件序列 run_start→…→run_end /
   组长+组员+记录员三角色发言 / 无人被 @ 不唤醒组员 / 未知 @ 只 notice /
@@ -18,10 +18,10 @@
 
 - **状态：本轮由队长统一安排运行**（`pwsh-158`）。原因：Moonshot 该账号有组织级 **3 RPM** 限流，
   两个进程并发跑真实自检会互相饿死、白烧额度。
-- 命令（队长侧）：
+- 命令：
   ```powershell
   cd ai-group
-  ..\campus-market\backend\.venv\Scripts\python.exe scripts\smoke_test.py
+  .\.venv\Scripts\python.exe scripts\smoke_test.py
   "EXIT=$LASTEXITCODE"
   ```
 - 出结果后请把控制台原样输出追加到本目录（建议命名 `smoke-real.txt`，含 `EXIT=` 行）。
@@ -34,7 +34,7 @@
 - 命令：
   ```powershell
   cd ai-group
-  ..\campus-market\backend\.venv\Scripts\python.exe scripts\integration_check.py --port 8831
+  .\.venv\Scripts\python.exe scripts\integration_check.py --port 8831
   "EXIT=$LASTEXITCODE"
   ```
 - 它真起 uvicorn、走 HTTP + WebSocket，打印每个发言人的**实际路由**、

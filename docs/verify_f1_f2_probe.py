@@ -2,7 +2,7 @@
 
 用法（在 ai-group 目录下）::
 
-    ..\\campus-market\\backend\\.venv\\Scripts\\python.exe docs\\verify_f1_f2_probe.py
+    .\\.venv\\Scripts\\python.exe docs\\verify_f1_f2_probe.py
 
 F1（上下文窗口本轮优先）：构造「12 条更早轮次长发言 + 1 条本轮短约束」，
 直接调 `engine._transcript(300)`，断言**本轮约束被保留**、被丢弃的是更早轮次记录。
