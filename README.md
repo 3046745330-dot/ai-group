@@ -22,7 +22,7 @@ ai-group/
 ├── scripts/
 │   ├── smoke_test.py         # 进程内端到端自检（--mock-only 零额度）
 │   ├── integration_check.py  # 起真实 uvicorn + 真实多厂商模型的一轮联调
-│   ├── run.ps1               # 一键启动（解释器选择写死，见下）
+│   ├── run.ps1               # 一键启动（自动挑一个装了依赖的解释器）
 │   ├── claim_probe.py        # checker 的独立验证探针（非本项目产物）
 │   └── ws_probe.py           # checker 的进程边界探针（非本项目产物）
 └── docs/evidence/            # 自检留档
